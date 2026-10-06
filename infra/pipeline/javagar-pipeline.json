@@ -55,8 +55,5 @@
         }
       ]
     }
-  ],
-  "tags": [
-    { "key": "Project", "value": "javagar-devsecops" }
   ]
 }
