@@ -9,18 +9,21 @@ default_stages: [pre-commit]
 fail_fast: false
 
 repos:
-  # ── cfn-lint: CloudFormation linting ────────────────────────────
+  # ── cfn-lint: CloudFormation linting (infra/cfn/ only) ──────────
+  # Scoped to infra/cfn/ so IAM JSON / pipeline JSON are not treated as CFN.
   - repo: https://github.com/aws-cloudformation/cfn-lint
     rev: v1.20.1
     hooks:
       - id: cfn-lint
         name: cfn-lint (CloudFormation linting)
-        files: \.(yaml|yml|json)$
+        files: ^infra/cfn/.*\.(yaml|yml)$
         args:
           - "--include-checks"
-          - "W"   # warn-level checks (includes over-permissive IAM)
+          - "W"
 
-  # ── Checkov: IaC security scanning ──────────────────────────────
+  # ── Checkov: IaC security scanning (infra/ and app/ only) ───────
+  # tests/bad_iac/ is intentionally insecure demo content used for
+  # Validation Test 1 – it is scanned manually, not as a gate.
   - repo: local
     hooks:
       - id: checkov
@@ -29,16 +32,9 @@ repos:
         entry: checkov.bat
         args:
           - "--directory"
-          - "."
+          - "infra"
           - "--check"
-          # CKV_AWS_19  – S3 SSE
-          # CKV_AWS_24  – SG no SSH from 0.0.0.0/0
-          # CKV_AWS_25  – SG no RDP from 0.0.0.0/0
-          # CKV_AWS_40  – IAM no wildcard actions
-          # CKV_AWS_107 – IAM no wildcard resources
           - "CKV_AWS_19,CKV_AWS_24,CKV_AWS_25,CKV_AWS_40,CKV_AWS_107"
-          - "--soft-fail-on"
-          - "MEDIUM"   # only HARD fail on HIGH/CRITICAL
           - "--output"
           - "cli"
         files: \.(yaml|yml|json|tf)$

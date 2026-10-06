@@ -1,0 +1,62 @@
+{
+  "name": "javagar-pipeline",
+  "roleArn": "arn:aws:iam::024687770842:role/javagar-codepipeline-role",
+  "artifactStore": {
+    "type": "S3",
+    "location": "javagar-pipeline-artifacts-024687770842"
+  },
+  "stages": [
+    {
+      "name": "Source",
+      "actions": [
+        {
+          "name": "javagar-github-source",
+          "actionTypeId": {
+            "category": "Source",
+            "owner": "AWS",
+            "provider": "CodeStarSourceConnection",
+            "version": "1"
+          },
+          "configuration": {
+            "ConnectionArn": "arn:aws:codestar-connections:us-east-1:024687770842:connection/5189677a-a9c6-48ca-8393-90e3020e4a81",
+            "FullRepositoryId": "Java-Idl/javagar-devsecops",
+            "BranchName": "master",
+            "OutputArtifactFormat": "CODE_ZIP",
+            "DetectChanges": "true"
+          },
+          "outputArtifacts": [
+            { "name": "javagar-source-output" }
+          ],
+          "runOrder": 1
+        }
+      ]
+    },
+    {
+      "name": "Build",
+      "actions": [
+        {
+          "name": "javagar-trivy-build",
+          "actionTypeId": {
+            "category": "Build",
+            "owner": "AWS",
+            "provider": "CodeBuild",
+            "version": "1"
+          },
+          "configuration": {
+            "ProjectName": "javagar-build"
+          },
+          "inputArtifacts": [
+            { "name": "javagar-source-output" }
+          ],
+          "outputArtifacts": [
+            { "name": "javagar-build-output" }
+          ],
+          "runOrder": 1
+        }
+      ]
+    }
+  ],
+  "tags": [
+    { "key": "Project", "value": "javagar-devsecops" }
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "name": "javagar-build",
+  "description": "javagar-devsecops Phase 2 – build + Trivy gate",
+  "source": {
+    "type": "CODEPIPELINE",
+    "buildspec": "buildspec.yml"
+  },
+  "artifacts": {
+    "type": "CODEPIPELINE"
+  },
+  "environment": {
+    "type": "LINUX_CONTAINER",
+    "image": "aws/codebuild/standard:7.0",
+    "computeType": "BUILD_GENERAL1_SMALL",
+    "privilegedMode": true,
+    "environmentVariables": [
+      {
+        "name": "AWS_DEFAULT_REGION",
+        "value": "us-east-1",
+        "type": "PLAINTEXT"
+      },
+      {
+        "name": "AWS_ACCOUNT_ID",
+        "value": "024687770842",
+        "type": "PLAINTEXT"
+      },
+      {
+        "name": "ECR_REPO_NAME",
+        "value": "javagar-app",
+        "type": "PLAINTEXT"
+      }
+    ]
+  },
+  "serviceRole": "arn:aws:iam::024687770842:role/javagar-codebuild-role",
+  "logsConfig": {
+    "cloudWatchLogs": {
+      "status": "ENABLED",
+      "groupName": "/aws/codebuild/javagar-build"
+    }
+  },
+  "tags": [
+    { "key": "Project", "value": "javagar-devsecops" }
+  ]
+}

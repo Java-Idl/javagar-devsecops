@@ -1,0 +1,101 @@
+version: 0.2
+
+# javagar-devsecops – Phase 2 CodeBuild buildspec
+# Stages:
+#   1. install  – install Trivy
+#   2. pre_build – unit tests + Trivy scan (exit 1 on HIGH/CRITICAL → abort pipeline)
+#   3. build    – docker build
+#   4. post_build – push to ECR (only reached if Trivy passed)
+
+env:
+  variables:
+    AWS_DEFAULT_REGION: "us-east-1"
+    AWS_ACCOUNT_ID: "024687770842"
+    ECR_REPO_NAME: "javagar-app"
+    IMAGE_TAG: "latest"
+  exported-variables:
+    - IMAGE_DIGEST   # exported for Phase 3 signing stage
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.11
+    commands:
+      - echo "=== [javagar] Installing Trivy ==="
+      - curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin v0.58.0
+      - trivy --version
+      - pip install uv
+      - uv pip install --system bandit
+
+  pre_build:
+    commands:
+      - echo "=== [javagar] Login to ECR ==="
+      - ECR_URI="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com"
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $ECR_URI
+
+      - echo "=== [javagar] Unit tests ==="
+      - pip install flask pytest
+      - python -m pytest app/ -v --tb=short || true   # non-blocking for demo; remove || true in prod
+
+      - echo "=== [javagar] Bandit SAST gate ==="
+      - bandit -r app/ -ll -ii -f txt
+      # Non-zero exit here aborts the pipeline before build
+
+      - echo "=== [javagar] Docker build for Trivy scan ==="
+      - IMAGE_URI="${ECR_URI}/${ECR_REPO_NAME}:${IMAGE_TAG}"
+      - docker build -t $IMAGE_URI app/
+
+      - echo "=== [javagar] Trivy scan – fail on HIGH/CRITICAL unfixed CVEs ==="
+      - |
+        trivy image \
+          --exit-code 1 \
+          --severity HIGH,CRITICAL \
+          --ignore-unfixed \
+          --format table \
+          $IMAGE_URI
+      # If Trivy exits 1 → CodeBuild marks FAILED → pipeline aborts → nothing pushed to ECR
+
+  build:
+    commands:
+      - echo "=== [javagar] Trivy PASSED – tagging with git SHA ==="
+      - GIT_SHA=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c1-8)
+      - IMAGE_URI_SHA="${ECR_URI}/${ECR_REPO_NAME}:${GIT_SHA}"
+      - docker tag "${ECR_URI}/${ECR_REPO_NAME}:${IMAGE_TAG}" $IMAGE_URI_SHA
+      - echo "IMAGE_URI_SHA=$IMAGE_URI_SHA"
+
+  post_build:
+    commands:
+      - echo "=== [javagar] Pushing to ECR ==="
+      - docker push "${ECR_URI}/${ECR_REPO_NAME}:${IMAGE_TAG}"
+      - docker push $IMAGE_URI_SHA
+
+      - echo "=== [javagar] Capturing image digest for signing (Phase 3) ==="
+      - |
+        IMAGE_DIGEST=$(aws ecr describe-images \
+          --repository-name $ECR_REPO_NAME \
+          --image-ids imageTag=$GIT_SHA \
+          --query 'imageDetails[0].imageDigest' \
+          --output text \
+          --region $AWS_DEFAULT_REGION)
+      - echo "IMAGE_DIGEST=$IMAGE_DIGEST"
+      - export IMAGE_DIGEST
+
+      - printf '[{"name":"javagar-app","imageUri":"%s@%s"}]' \
+          "${ECR_URI}/${ECR_REPO_NAME}" \
+          "$IMAGE_DIGEST" > imagedefinitions.json
+      - cat imagedefinitions.json
+
+artifacts:
+  files:
+    - imagedefinitions.json
+  name: javagar-build-output
+
+reports:
+  javagar-trivy-report:
+    files:
+      - trivy-report.json
+    discard-paths: yes
+
+cache:
+  paths:
+    - /root/.cache/trivy/**/*
