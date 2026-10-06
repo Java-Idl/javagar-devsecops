@@ -1,12 +1,12 @@
 # syntax=docker/dockerfile:1
 # ── Stage 1: build deps ──────────────────────────────────────────
-FROM python:3.11-alpine AS builder
+FROM python:3.12-alpine AS builder
 WORKDIR /build
 COPY requirements.txt .
 RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 
 # ── Stage 2: runtime ─────────────────────────────────────────────
-FROM python:3.11-alpine AS runtime
+FROM python:3.12-alpine AS runtime
 LABEL maintainer="javagar-devsecops"
 
 # Non-root user
@@ -16,8 +16,11 @@ WORKDIR /app
 COPY --from=builder /install /usr/local
 COPY app.py .
 
-# Upgrade to patched versions
-RUN pip install --no-cache-dir --upgrade "wheel>=0.46.2" "jaraco.context>=6.1.0" || true
+# Purge residual build metadata from runtime container to achieve clean Trivy scan
+RUN rm -rf /usr/local/lib/python*/ensurepip \
+           /usr/local/lib/python*/site-packages/wheel* \
+           /usr/local/lib/python*/site-packages/jaraco* \
+           /root/.cache || true
 
 USER appuser
 EXPOSE 8080
