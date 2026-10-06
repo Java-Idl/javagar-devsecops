@@ -58,13 +58,13 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Run Semgrep
-        # Rules: OWASP top-10, secrets detection, Python security, IaC
+        # Rules: OWASP top-10, secrets detection, Python security, CI/CD
         run: |
           semgrep scan \
             --config "p/owasp-top-ten" \
             --config "p/secrets" \
             --config "p/python" \
-            --config "p/cloudformation" \
+            --config "p/ci" \
             --exclude "tests" \
             --error \
             --json \

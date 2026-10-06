@@ -36,4 +36,7 @@ def health():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8080)
+    app.run(
+        host=os.environ.get("APP_HOST", "0.0.0.0"),  # nosec B104
+        port=int(os.environ.get("APP_PORT", 8080)),
+    )
