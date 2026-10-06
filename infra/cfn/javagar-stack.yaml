@@ -1,0 +1,71 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "javagar-devsecops – VPC + Security Groups (Phase 1 IaC demo)"
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues: [dev, staging, prod]
+
+Resources:
+  # ── S3 Bucket (compliant – SSE enabled) ──────────────────────────
+  JavagarArtifactBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "javagar-artifacts-${AWS::AccountId}-${Environment}"
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: aws:kms
+      VersioningConfiguration:
+        Status: Enabled
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  # ── Security Group (compliant – no 0.0.0.0/0 on 22/3389) ────────
+  JavagarAppSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "javagar-app-sg – application security group"
+      GroupName: !Sub "javagar-app-sg-${Environment}"
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 8080
+          ToPort: 8080
+          CidrIp: 10.0.0.0/8   # internal only – intentionally restricted
+      Tags:
+        - Key: Project
+          Value: javagar-devsecops
+
+  # ── IAM Role (compliant – least privilege) ────────────────────────
+  JavagarECSTaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "javagar-ecs-task-role-${Environment}"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: javagar-task-policy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:javagar/*"
+
+Outputs:
+  ArtifactBucketName:
+    Value: !Ref JavagarArtifactBucket
+  AppSGId:
+    Value: !Ref JavagarAppSG
+  ECSTaskRoleArn:
+    Value: !GetAtt JavagarECSTaskRole.Arn

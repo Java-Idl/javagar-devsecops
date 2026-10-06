@@ -1,0 +1,45 @@
+# .pre-commit-config.yaml – javagar-devsecops Phase 1
+# Runs Checkov (IaC) and cfn-lint (CloudFormation) on every local commit.
+# Blocks commits that contain:
+#   - Security groups open to 0.0.0.0/0 on 22/3389
+#   - S3 buckets without SSE
+#   - IAM policies with Action:"*" on Resource:"*"
+
+default_stages: [pre-commit]
+fail_fast: false
+
+repos:
+  # ── cfn-lint: CloudFormation linting ────────────────────────────
+  - repo: https://github.com/aws-cloudformation/cfn-lint
+    rev: v1.20.1
+    hooks:
+      - id: cfn-lint
+        name: cfn-lint (CloudFormation linting)
+        files: \.(yaml|yml|json)$
+        args:
+          - "--include-checks"
+          - "W"   # warn-level checks (includes over-permissive IAM)
+
+  # ── Checkov: IaC security scanning ──────────────────────────────
+  - repo: local
+    hooks:
+      - id: checkov
+        name: checkov (IaC security scan)
+        language: script
+        entry: checkov.bat
+        args:
+          - "--directory"
+          - "."
+          - "--check"
+          # CKV_AWS_19  – S3 SSE
+          # CKV_AWS_24  – SG no SSH from 0.0.0.0/0
+          # CKV_AWS_25  – SG no RDP from 0.0.0.0/0
+          # CKV_AWS_40  – IAM no wildcard actions
+          # CKV_AWS_107 – IAM no wildcard resources
+          - "CKV_AWS_19,CKV_AWS_24,CKV_AWS_25,CKV_AWS_40,CKV_AWS_107"
+          - "--soft-fail-on"
+          - "MEDIUM"   # only HARD fail on HIGH/CRITICAL
+          - "--output"
+          - "cli"
+        files: \.(yaml|yml|json|tf)$
+        pass_filenames: false

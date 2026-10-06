@@ -1,0 +1,34 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+javagar.db
+
+# uv
+uv.lock
+
+# Terraform
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.backup
+*.tfplan
+
+# Reports (generated locally; CI uploads as artifacts)
+bandit-report.json
+semgrep-report.json
+checkov-report.json
+prowler-output/
+
+# Secrets – should never be committed
+.env
+*.pem
+*.key
+
+# OS
+.DS_Store
+Thumbs.db

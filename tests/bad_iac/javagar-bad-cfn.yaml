@@ -1,0 +1,51 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# VALIDATION TEST 1 – Deliberately bad IaC
+# This file is committed to trigger Checkov / cfn-lint failures in pre-commit
+# and block the merge in CI.  Do NOT deploy this file.
+# ─────────────────────────────────────────────────────────────────────────────
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "javagar-bad-iac – intentionally insecure resources for SAST demo"
+
+Resources:
+
+  # ── BAD #1: S3 bucket without SSE ────────────────────────────────
+  # Expected: Checkov CKV_AWS_19 – "Ensure the S3 bucket has server-side encryption enabled"
+  JavagarBadBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: "javagar-bad-bucket-no-sse"
+      # No BucketEncryption block
+
+  # ── BAD #2: Security group open to 0.0.0.0/0 on port 22 (SSH) ───
+  # Expected: Checkov CKV_AWS_24 – "Ensure no security groups allow ingress from 0.0.0.0/0 to port 22"
+  JavagarBadSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "javagar-bad-sg – open SSH to the world"
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0   # <<< INTENTIONALLY BAD
+
+  # ── BAD #3: IAM role with wildcard Action + Resource ─────────────
+  # Expected: Checkov CKV_AWS_40 / cfn-lint W3005
+  JavagarBadRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: "javagar-bad-role-wildcard"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: javagar-bad-policy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: "*"        # <<< INTENTIONALLY BAD
+                Resource: "*"      # <<< INTENTIONALLY BAD

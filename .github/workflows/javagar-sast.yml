@@ -1,0 +1,94 @@
+name: javagar-sast-pr
+
+# Runs Semgrep + Bandit on every PR targeting main.
+# A non-zero exit code blocks merge (enforced by branch protection).
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  security-events: write   # for future SARIF upload to GitHub Security tab
+
+jobs:
+  # ── Bandit: Python SAST ──────────────────────────────────────────
+  bandit:
+    name: Bandit SAST
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Install Bandit
+        run: uv pip install --system bandit
+
+      - name: Run Bandit
+        # -ll = HIGH severity only, -ii = HIGH confidence only → exit 1 on any finding
+        run: |
+          bandit -r app/ tests/ \
+            -ll -ii \
+            -f json \
+            -o bandit-report.json || true
+          bandit -r app/ tests/ -ll -ii   # human-readable output + exit code
+
+      - name: Upload Bandit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: javagar-bandit-report
+          path: bandit-report.json
+
+  # ── Semgrep: Python + IaC SAST ───────────────────────────────────
+  semgrep:
+    name: Semgrep SAST
+    runs-on: ubuntu-latest
+    container:
+      image: semgrep/semgrep:latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Semgrep
+        # Rules: OWASP top-10, secrets detection, Python security, IaC
+        run: |
+          semgrep scan \
+            --config "p/owasp-top-ten" \
+            --config "p/secrets" \
+            --config "p/python" \
+            --config "p/terraform" \
+            --config "p/cloudformation" \
+            --error \
+            --json \
+            --output semgrep-report.json \
+            .
+
+      - name: Upload Semgrep report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: javagar-semgrep-report
+          path: semgrep-report.json
+
+  # ── Checkov: IaC scan on PR ──────────────────────────────────────
+  checkov:
+    name: Checkov IaC Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Checkov
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: .
+          check: CKV_AWS_19,CKV_AWS_24,CKV_AWS_25,CKV_AWS_40,CKV_AWS_107
+          soft_fail: false
+          output_format: cli
