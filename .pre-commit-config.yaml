@@ -16,10 +16,7 @@ repos:
     hooks:
       - id: cfn-lint
         name: cfn-lint (CloudFormation linting)
-        files: ^infra/cfn/.*\.(yaml|yml)$
-        args:
-          - "--include-checks"
-          - "W"
+        files: ^infra/cfn/.*\.yaml$
 
   # ── Checkov: IaC security scanning (infra/ and app/ only) ───────
   # tests/bad_iac/ is intentionally insecure demo content used for

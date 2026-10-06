@@ -1,0 +1,61 @@
+{
+  "family": "javagar-app-task",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": [
+    "EC2",
+    "FARGATE"
+  ],
+  "cpu": "256",
+  "memory": "512",
+  "executionRoleArn": "arn:aws:iam::024687770842:role/javagar-ecs-execution-role",
+  "taskRoleArn": "arn:aws:iam::024687770842:role/javagar-ecs-task-role-dev",
+  "containerDefinitions": [
+    {
+      "name": "javagar-app",
+      "image": "024687770842.dkr.ecr.us-east-1.amazonaws.com/javagar-app@sha256:8ecf00990c394abe182e46a32e8e671b05b207c13d08796b32a2b62d2381364d",
+      "essential": true,
+      "user": "appuser",
+      "readonlyRootFilesystem": true,
+      "privileged": false,
+      "linuxParameters": {
+        "capabilities": {
+          "drop": [
+            "ALL"
+          ]
+        },
+        "initProcessEnabled": true
+      },
+      "portMappings": [
+        {
+          "containerPort": 8080,
+          "hostPort": 8080,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        {
+          "name": "APP_PORT",
+          "value": "8080"
+        },
+        {
+          "name": "APP_HOST",
+          "value": "0.0.0.0"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/javagar-app",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      }
+    }
+  ],
+  "tags": [
+    {
+      "key": "Project",
+      "value": "javagar-devsecops"
+    }
+  ]
+}

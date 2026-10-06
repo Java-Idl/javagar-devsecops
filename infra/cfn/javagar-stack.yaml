@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: "javagar-devsecops – VPC + Security Groups (Phase 1 IaC demo)"
+Description: "javagar-devsecops - VPC and Security Groups (Phase 1 IaC demo)"
 
 Parameters:
   Environment:
@@ -8,7 +8,7 @@ Parameters:
     AllowedValues: [dev, staging, prod]
 
 Resources:
-  # ── S3 Bucket (compliant – SSE enabled) ──────────────────────────
+  # S3 Bucket (compliant - SSE enabled)
   JavagarArtifactBucket:
     Type: AWS::S3::Bucket
     Properties:
@@ -25,26 +25,27 @@ Resources:
         IgnorePublicAcls: true
         RestrictPublicBuckets: true
 
-  # ── Security Group (compliant – no 0.0.0.0/0 on 22/3389) ────────
+  # Security Group (compliant - no 0.0.0.0/0 on 22/3389)
   JavagarAppSG:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: "javagar-app-sg – application security group"
+      GroupDescription: "javagar-app-sg - application security group"
       GroupName: !Sub "javagar-app-sg-${Environment}"
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 8080
           ToPort: 8080
-          CidrIp: 10.0.0.0/8   # internal only – intentionally restricted
+          CidrIp: 10.0.0.0/8   # internal only - intentionally restricted
       Tags:
         - Key: Project
           Value: javagar-devsecops
 
-  # ── IAM Role (compliant – least privilege) ────────────────────────
+  # IAM Role (compliant - least privilege with Permission Boundary)
   JavagarECSTaskRole:
     Type: AWS::IAM::Role
     Properties:
       RoleName: !Sub "javagar-ecs-task-role-${Environment}"
+      PermissionsBoundary: "arn:aws:iam::024687770842:policy/javagar-permission-boundary"
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:

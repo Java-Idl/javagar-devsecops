@@ -11,6 +11,15 @@ javagar.db
 # uv
 uv.lock
 
+# Agent directories & configs
+.agent/
+.agents/
+.gemini/
+
+# Tools & binaries
+tools/
+*.exe
+
 # Terraform
 .terraform/
 .terraform.lock.hcl
@@ -18,16 +27,18 @@ uv.lock
 *.tfstate.backup
 *.tfplan
 
-# Reports (generated locally; CI uploads as artifacts)
+# Security Reports & Artifacts
 bandit-report.json
 semgrep-report.json
 checkov-report.json
 prowler-output/
+*.log
 
-# Secrets – should never be committed
-.env
-*.pem
+# Private keys & secrets (never commit private keys)
+infra/keys/*.key
 *.key
+*.pem
+.env
 
 # OS
 .DS_Store

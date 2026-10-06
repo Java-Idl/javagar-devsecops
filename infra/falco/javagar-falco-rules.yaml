@@ -1,0 +1,46 @@
+# Falco Custom Rules for javagar-devsecops Container Runtime Monitoring
+# Problem Statement 10: Runtime Detection & Hardened Controls
+
+- rule: javagar_terminal_shell_in_container
+  desc: Detect interactive terminal or shell execution inside javagar microservice container
+  condition: >
+    container.name startswith "javagar" and
+    evt.type = execve and
+    proc.name in (sh, bash, ash, zsh, ksh, csh)
+  output: >
+    "SECURITY_ALERT: Terminal shell spawned in javagar container (user=%user.name container_id=%container.id container_name=%container.name shell=%proc.name parent=%proc.pname cmdline=%proc.cmdline)"
+  priority: WARNING
+  tags: [container, shell, javagar, mitre_execution]
+
+- rule: javagar_read_sensitive_file_untrusted
+  desc: Detect access to sensitive files (/etc/shadow, /etc/passwd, aws credentials) inside container
+  condition: >
+    container.name startswith "javagar" and
+    open_read and
+    (fd.name in (/etc/shadow, /etc/gshadow, /root/.aws/credentials, /root/.aws/config) or
+     fd.name startswith "/etc/security")
+  output: >
+    "SECURITY_ALERT: Sensitive file read attempt in javagar container (user=%user.name container_name=%container.name file=%fd.name cmdline=%proc.cmdline)"
+  priority: CRITICAL
+  tags: [container, sensitive_file, javagar, mitre_credential_access]
+
+- rule: javagar_privilege_escalation
+  desc: Detect privilege escalation attempts or setuid execution in container
+  condition: >
+    container.name startswith "javagar" and
+    evt.type in (setuid, setgid, capset)
+  output: >
+    "SECURITY_ALERT: Privilege escalation attempted in javagar container (user=%user.name container_name=%container.name evt=%evt.type)"
+  priority: CRITICAL
+  tags: [container, privilege_escalation, javagar, mitre_privilege_escalation]
+
+- rule: javagar_imds_credential_theft
+  desc: Detect in-container attempts to access AWS Instance Metadata Service (IMDS)
+  condition: >
+    container.name startswith "javagar" and
+    evt.type = connect and
+    fd.sip = "169.254.169.254"
+  output: >
+    "SECURITY_ALERT: In-container AWS IMDS access attempt detected (user=%user.name container_name=%container.name ip=%fd.sip port=%fd.sport)"
+  priority: HIGH
+  tags: [container, imds, credential_theft, javagar, mitre_discovery]
