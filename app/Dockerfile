@@ -16,10 +16,8 @@ WORKDIR /app
 COPY --from=builder /install /usr/local
 COPY app.py .
 
-# Remove unnecessary build/wheel artifacts from runtime image to keep attack surface minimal
-RUN rm -rf /usr/local/lib/python3.11/site-packages/jaraco* \
-           /usr/local/lib/python3.11/site-packages/wheel* \
-           /usr/local/lib/python3.11/site-packages/pip* || true
+# Upgrade to patched versions
+RUN pip install --no-cache-dir --upgrade "wheel>=0.46.2" "jaraco.context>=6.1.0" || true
 
 USER appuser
 EXPOSE 8080
